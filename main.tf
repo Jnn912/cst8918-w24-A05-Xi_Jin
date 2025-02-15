@@ -29,10 +29,21 @@ variable "admin_username" {
   default     = "azureuser"
 }
 
+
 resource "azurerm_resource_group" "rg" {
   name     = "${var.labelPrefix}-A05-RG"
   location = var.region
 }
+
+
+resource "azurerm_public_ip" "public_ip" {
+  name                = "${var.labelPrefix}-A05-PublicIP"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
 
 resource "azurerm_virtual_network" "vnet" {
   name                = "${var.labelPrefix}-A05-VNet"
@@ -41,12 +52,15 @@ resource "azurerm_virtual_network" "vnet" {
   resource_group_name = azurerm_resource_group.rg.name
 }
 
+
 resource "azurerm_subnet" "subnet" {
   name                 = "${var.labelPrefix}-A05-Subnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.1.0/24"]
 }
+
+
 resource "azurerm_network_security_group" "nsg" {
   name                = "${var.labelPrefix}-A05-NSG"
   location            = azurerm_resource_group.rg.location
@@ -77,6 +91,7 @@ resource "azurerm_network_security_group" "nsg" {
   }
 }
 
+
 resource "azurerm_network_interface" "nic" {
   name                = "${var.labelPrefix}-A05-NIC"
   location            = azurerm_resource_group.rg.location
@@ -90,10 +105,12 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
+
 resource "azurerm_network_interface_security_group_association" "nsg_assoc" {
   network_interface_id      = azurerm_network_interface.nic.id
   network_security_group_id = azurerm_network_security_group.nsg.id
 }
+
 
 resource "azurerm_linux_virtual_machine" "vm" {
   name                  = "${var.labelPrefix}-A05-VM"
@@ -114,9 +131,10 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
   admin_ssh_key {
     username   = var.admin_username
-    public_key = file("/Users/jnn/.ssh/id_rsa.pub")
+    public_key = file("~/.ssh/id_rsa.pub")  
   }
 }
+
 
 resource "azurerm_virtual_machine_extension" "custom_script" {
   name                 = "initScript"
@@ -128,13 +146,8 @@ resource "azurerm_virtual_machine_extension" "custom_script" {
     "commandToExecute": "bash -c 'sudo apt-get update && sudo apt-get install -y apache2'"
   })
 }
-resource "azurerm_public_ip" "public_ip" {
-  name                = "${var.labelPrefix}-A05-PublicIP"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-}
+
+
 output "public_ip" {
   description = "The public IP address of the VM"
   value       = azurerm_public_ip.public_ip.ip_address
